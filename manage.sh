@@ -207,7 +207,7 @@ function main {
                     echo -e "${b_red}ERR:${red} no migration name${end_}";
                 else
                     cd project;
-                    alembic revision --autogenerate -m $2
+                    alembic revision --autogenerate -m $2;
                 fi
             ;;
             'shell')
