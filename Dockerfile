@@ -28,7 +28,7 @@ WORKDIR /opt/project/
 RUN poetry config virtualenvs.create false \
     && poetry install --no-root --no-cache --no-ansi --no-interaction --only main \
     && poetry cache clear pypi --all
-
+COPY ./manage.sh /opt/manage.sh
 COPY ./entrypoint.sh /opt/entrypoint.sh
 RUN chmod +x /opt/entrypoint.sh
 ENTRYPOINT ["/opt/entrypoint.sh"]
