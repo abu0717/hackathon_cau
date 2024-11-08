@@ -60,7 +60,8 @@ function show_args {
                     ${cyan}- app${end_}                         ${gray}|  ex: create app <app_name>${end_}
                     ${cyan}- image${end_}                       ${gray}|  ex: create image${end_}
                     ${cyan}- container${end_}                   ${gray}|  ex: create container${end_}
-  ${blue}- add${end_}       -- add package to venv              ${b_green}|${end_}  ${gray}ex: $script_name ${b_white}add <package_name>${end_}
+  ${blue}- add${end_}       -- add package to poetry              ${b_green}|${end_}  ${gray}ex: $script_name ${b_white}add <package_name>${end_}
+  ${blue}- migrate${end_}   -- create migration                   ${b_green}|${end_}  ${gray}ex: $script_name ${b_white}add <comment>${end_}
   ${blue}- help${end_}      -- to get help                      ${b_green}|${end_}  ${gray}ex: $script_name ${b_white}help${end_}";
     echo "";
     echo -e "${b_white}options:${end_}";
@@ -200,8 +201,17 @@ function main {
         show_args
     else
         case $1 in
+            'migrate')
+                if [ $# -lt 2 ]
+                then
+                    echo -e "${b_red}ERR:${red} no migration name${end_}";
+                else
+                    cd project;
+                    alemic revision --autogenerate -m $2
+                fi
+            ;;
             'shell')
-              poetry shell;
+                poetry shell;
             ;;
             'init')
                 init_project ${@:2};
