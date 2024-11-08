@@ -208,7 +208,7 @@ function main {
             ;;
             'run')
                 cd project;
-                python __main__;
+                python .;
             ;;
             'create')
                 create ${@:2};
