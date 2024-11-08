@@ -207,7 +207,8 @@ function main {
                 init_project ${@:2};
             ;;
             'run')
-                python project;
+                cd project;
+                python __main__;
             ;;
             'create')
                 create ${@:2};
