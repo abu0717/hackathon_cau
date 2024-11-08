@@ -217,8 +217,13 @@ function main {
                 init_project ${@:2};
             ;;
             'run')
-                cd project;
-                python .;
+                docker compose up -d;
+            ;;
+            'stop')
+                docker compose down;
+            ;;
+            'restart')
+                docker compose down && docker compose up -d;
             ;;
             'create')
                 create ${@:2};

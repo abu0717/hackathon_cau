@@ -14,12 +14,14 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 
 RUN pip install --upgrade pip
 
-RUN pip install --no-cache -U pip setuptools git+https://github.com/celery/django-celery-beat.git \
+RUN pip install --no-cache -U pip setuptools \
     && rm -rf /root/.cache/pip \
     && curl -sSL https://install.python-poetry.org | python3 - \
     && touch /var/log/cron.log
 
-COPY ./pyproject.toml ./poetry.loc[k] /opt/api/
+ENV PATH="${PATH}:/root/.local/bin"
+
+COPY ./pyproject.toml /opt/project/
 
 WORKDIR /opt/project/
 
@@ -33,7 +35,7 @@ ENTRYPOINT ["/opt/entrypoint.sh"]
 
 FROM base as local
 
-RUN poetry install --no-root --no-cache --no-ansi --no-interaction --with dev \
+RUN poetry install --no-root --no-cache --no-ansi --no-interaction \
     && poetry cache clear pypi --all
 
 FROM base as live

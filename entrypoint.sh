@@ -7,6 +7,7 @@ set -o nounset
 python << END
 import sys
 import time
+from os import getenv
 
 import psycopg
 
@@ -14,11 +15,11 @@ suggest_unrecoverable_after = 30
 start = time.time()
 
 user=getenv('DATABASE_USER')
-pass=getenv('DATABASE_PASS')
+password=getenv('DATABASE_PASS')
 host=getenv('DATABASE_HOST')
 port=getenv('DATABASE_PORT')
 name=getenv('DATABASE_NAME')
-url = f"postgres://{user}:{pass}@{host}:{port}/{name}"
+url = f"postgres://{user}:{password}@{host}:{port}/{name}"
 while True:
     try:
         con = psycopg.connect(conninfo=url)

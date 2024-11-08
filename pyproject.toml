@@ -7,9 +7,9 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.13"
-psycopg2-binary = "^2.9.10"
 asyncpg = "^0.30.0"
 pyjwt = "^2.9.0"
+psycopg = { version = "*", extras = ["binary", "pool"] }
 python-multipart = "^0.0.17"
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 fastapi = {extras = ["all"], version = "^0.115.4"}
