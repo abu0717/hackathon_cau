@@ -94,6 +94,9 @@ function init_project {
             poetry lock;
             echo "" >> pyproject.toml;
             poetry install --no-root;
+            poetry add fastapi[all]
+            poetry add sqlalchemy
+            poetry add alembic
             clear;
         fi
         cd project;
