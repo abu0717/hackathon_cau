@@ -73,11 +73,11 @@ async def get_me(
         user_session: SessionModel = Depends(AccountModel.get_current_user),
 ):
     if user_session.active:
-        return User(username=user_session.user.username, phone=user_session.user.phone)
+        return User(username=user_session.user.username, birth_date=user_session.user.birth_date, phone=user_session.user.phone)
     raise HTTPException(status_code=400, detail="Inactive user")
 
 
-@router.get('/info', response_model=User)
+@router.get('/info', response_model=UserInfoSchema)
 async def get_user_info(
         user_session: SessionModel = Depends(AccountModel.get_current_user),
         session: AsyncSession = Depends(get_session)
@@ -94,15 +94,13 @@ async def get_user_info(
         if not user_info:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User info not found")
 
-        return {
-            "username": account_info.username,
-            "phone": account_info.phone,
+        return UserInfoSchema(**{
             "weight": user_info.weight,
             "height": user_info.height,
             "chest_size": user_info.chest_size,
             "waist_size": user_info.waist_size,
             "hips_size": user_info.hips_size,
-        }
+        })
 
     raise HTTPException(status_code=400, detail="Inactive user")
 

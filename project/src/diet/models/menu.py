@@ -1,9 +1,10 @@
-from datetime import datetime
+import datetime
 from src.auth.models import AccountModel
 from src.database.models import BaseModel
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, backref
 from sqlalchemy import ForeignKey
 from enum import Enum
+from .products import ProductModel
 
 meal_dict = {
     'bt': "Breakfast",
@@ -31,7 +32,7 @@ class MenuModel(BaseModel):
 
     meal_time: Mapped[MealTimes]
     date: Mapped[datetime.date]
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'))
+    user_id: Mapped[int] = mapped_column(ForeignKey('accounts.id', ondelete='CASCADE'))
     user: Mapped[AccountModel] = relationship(backref="menus")
     items: Mapped[list["MenuItemModel"]] = relationship(back_populates="menu")
 
@@ -45,6 +46,7 @@ class MenuItemModel(BaseModel):
     menu_id: Mapped[int] = mapped_column(ForeignKey('menus.id', ondelete='CASCADE'))
     menu: Mapped[MenuModel] = relationship(back_populates="items")
     product_id: Mapped[int] = mapped_column(ForeignKey('products.id', ondelete='CASCADE'))
+    product: Mapped["ProductModel"] = relationship(backref="menu_items")
 
     def __str__(self):
         return f"<MenuItemModel(menu_id: {self.menu_id}, product_id: {self.product_id})>"

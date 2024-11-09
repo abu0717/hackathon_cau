@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from .models import ProductModel, ProductTypes
@@ -13,7 +13,7 @@ async def generate_menu(
         calories: tuple[int, int],
         types_amount: dict[ProductTypes, int],
         session: AsyncSession
-) -> MenuModel:
+) -> tuple:
     """
     :param user: that user who needs a menu
     :param meal_time: which meal time a menu takes
@@ -30,7 +30,7 @@ async def generate_menu(
     for product_type, amount in types_amount.items():
         if amount > 0:
             query = (
-                select(ProductModel.id, ProductModel.type)
+                select(ProductModel.id, ProductModel.calories)
                 .filter(ProductModel.type == product_type)
                 .order_by(func.random())
                 .limit(amount)
@@ -48,4 +48,4 @@ async def generate_menu(
         menu_items.append(MenuItemModel(menu_id=menu.id, product_id=product[0]))
     session.add_all(menu_items)
     await session.commit()
-    return menu
+    return menu, selected_products

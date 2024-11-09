@@ -104,3 +104,18 @@ class UserManager:
         except (InvalidTokenError, ValueError):
             raise credentials_exception
 
+    @staticmethod
+    def verify_user(token: Annotated[str, Depends(oauth2_scheme)]):
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            if payload['type'] != 'access':
+                raise credentials_exception
+            if datetime.now(timezone.utc) > datetime.fromtimestamp(payload['exp'], timezone.utc):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Access token is expired",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            return True
+        except (InvalidTokenError, ValueError):
+            raise credentials_exception
