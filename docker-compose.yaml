@@ -33,7 +33,7 @@ services:
 
   project:
     <<: *base-project
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--reload"]
     depends_on:
       - postgres-db
       - redis-db
