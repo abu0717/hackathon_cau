@@ -1,3 +1,5 @@
+import datetime
+
 from pydantic import BaseModel, Field
 from enum import Enum as GEnum
 
@@ -21,9 +23,8 @@ class UserInDB(User):
 
 
 class UserInfoSchema(BaseModel):
-    full_name: str
-    age: int
-    gender: Gender
     weight: float
     height: float
-    user_id: int
+    chest_size: float
+    waist_size: float
+    hips_size: float
