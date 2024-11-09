@@ -88,7 +88,7 @@ class UserManager:
 
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            if payload['type'] != 'refresh':
+            if payload['type'] != 'access':
                 raise credentials_exception
             if datetime.now() > payload['exp']:
                 raise HTTPException(
