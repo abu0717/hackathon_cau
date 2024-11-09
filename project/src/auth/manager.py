@@ -15,7 +15,7 @@ from typing import Annotated, Union
 # openssl rand -hex 32
 SECRET_KEY = settings.auth.secret_key
 ALGORITHM = settings.auth.algorithm
-ACCESS_TOKEN_EXPIRE_MINUTES = settings.auth.access_token_life_time * 60
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.auth.access_token_life_time
 REFRESH_TOKEN_EXPIRE_MINUTES = settings.auth.refresh_token_life_time * 60
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -90,17 +90,15 @@ class UserManager:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             if payload['type'] != 'access':
                 raise credentials_exception
-            if datetime.now() > payload['exp']:
+            if datetime.now(timezone.utc) > datetime.fromtimestamp(payload['exp'], timezone.utc):
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Access token is expired",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
-            session_id: int = int(payload.get("session_id"))
-            if session_id is None:
-                raise credentials_exception
+            session_id: int = payload.get("session_id")
             user_session: SessionModel = (await session.execute(select(SessionModel).filter(SessionModel.id == session_id).options(joinedload(SessionModel.user)))).scalars().one_or_none()
-            if user_session is None:
+            if not user_session:
                 raise credentials_exception
             return user_session
         except (InvalidTokenError, ValueError):
