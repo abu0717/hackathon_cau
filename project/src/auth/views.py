@@ -4,10 +4,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from src.database.database import get_session
-from .schemas import Token, User, UserInDB, UserInfoSchema
+from .schemas import Token, User, UserInDB, UserInfoSchema, UserResponse
 from .models import AccountModel, SessionModel, UserInfo
 from .manager import credentials_exception, oauth2_scheme, UserManager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, desc, join
 from fastapi import HTTPException, status
 
@@ -105,8 +105,6 @@ async def get_user_info(
     raise HTTPException(status_code=400, detail="Inactive user")
 
 
-
-
 # @router.post('/user_info')
 # async def user_info(user: UserInfoSchema, session: AsyncSession = Depends(get_session),
 #                     user_session: SessionModel = Depends(AccountModel.get_current_user)):
@@ -202,7 +200,13 @@ async def post_user_info(
         raise HTTPException(status_code=400, detail="Inactive user")
 
     account = user_session.user
+    one_week_ago = datetime.utcnow() - timedelta(weeks=1)
+    stmt_latest = select(UserInfo).where(UserInfo.user_id == account.id).order_by(desc(UserInfo.created_at))
+    result = await session.execute(stmt_latest)
+    latest_info = result.scalars().first()
 
+    if latest_info and latest_info.created_at > one_week_ago:
+        raise HTTPException(status_code=403, detail="You can only input data once a week.")
     new_user_info = UserInfo(
         weight=new_data.weight,
         height=new_data.height,
@@ -226,7 +230,7 @@ async def post_user_info(
     }
 
 
-@router.get('/info/progress', response_model=User)
+@router.get('/info/progress', response_model=UserResponse)
 async def get_user_progress(
         user_session: SessionModel = Depends(AccountModel.get_current_user),
         session: AsyncSession = Depends(get_session)
@@ -238,7 +242,7 @@ async def get_user_progress(
         result = await session.execute(stmt_latest)
         latest_info = result.scalars().first()
 
-        one_week_ago = datetime.utcnow() - timedelta(weeks=1)
+        one_week_ago = datetime.utcnow() - timedelta(minutes=1)
         stmt_week_old = select(UserInfo).where(
             UserInfo.user_id == account.id,
             UserInfo.created_at <= one_week_ago
@@ -253,13 +257,14 @@ async def get_user_progress(
             elif latest_info.weight > week_old_info.weight:
                 progress_message = "Consider reviewing your goals."
 
+            latest_info_dict = {key: value for key, value in latest_info.__dict__.items() if not key.startswith("_")}
+
             return {
-                "username": account.username,
-                "phone": account.phone,
-                "current_info": latest_info,
+                "latest_info": latest_info_dict,
                 "progress_message": progress_message
             }
 
         raise HTTPException(status_code=404, detail="Not enough data")
 
     raise HTTPException(status_code=400, detail="Inactive user")
+
