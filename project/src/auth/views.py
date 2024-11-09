@@ -8,7 +8,7 @@ from .schemas import Token, User, UserInDB, UserInfoSchema
 from .models import AccountModel, SessionModel, UserInfo
 from .manager import credentials_exception, oauth2_scheme, UserManager
 from datetime import datetime, timedelta
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, join
 from fastapi import HTTPException, status
 
 router = APIRouter(prefix='/account', tags=['account'])
@@ -75,6 +75,38 @@ async def get_me(
     if user_session.active:
         return User(username=user_session.user.username, phone=user_session.user.phone)
     raise HTTPException(status_code=400, detail="Inactive user")
+
+
+@router.get('/info', response_model=User)
+async def get_user_info(
+        user_session: SessionModel = Depends(AccountModel.get_current_user),
+        session: AsyncSession = Depends(get_session)
+):
+    if user_session.active:
+        account = user_session.user
+
+        stmt = select(AccountModel, UserInfo).join(UserInfo, UserInfo.user_id == AccountModel.id).filter(
+            user_session.user_id == AccountModel.id)
+        result = await session.execute(stmt)
+
+        account_info, user_info = result.first()
+
+        if not user_info:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User info not found")
+
+        return {
+            "username": account_info.username,
+            "phone": account_info.phone,
+            "weight": user_info.weight,
+            "height": user_info.height,
+            "chest_size": user_info.chest_size,
+            "waist_size": user_info.waist_size,
+            "hips_size": user_info.hips_size,
+        }
+
+    raise HTTPException(status_code=400, detail="Inactive user")
+
+
 
 
 # @router.post('/user_info')
@@ -230,6 +262,6 @@ async def get_user_progress(
                 "progress_message": progress_message
             }
 
-        raise HTTPException(status_code=404, detail="Not enough data for progress evaluation")
+        raise HTTPException(status_code=404, detail="Not enough data")
 
     raise HTTPException(status_code=400, detail="Inactive user")
