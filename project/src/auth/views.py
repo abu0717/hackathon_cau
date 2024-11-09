@@ -45,7 +45,7 @@ async def refresh(
 @router.post('/')
 async def create_account(response: Response, data: UserInDB = Body(), session: AsyncSession = Depends(get_session)):
     user = AccountModel(username=data.username, password=AccountModel.get_password_hash(data.password),
-                        phone=data.phone)
+                        phone=data.phone, birth_date=data.birth_date)
     try:
         session.add(user)
         await session.commit()
@@ -65,7 +65,7 @@ async def create_account(response: Response, data: UserInDB = Body(), session: A
                 }
             ]
         }
-    return User(username=user.username, phone=user.phone)
+    return User(username=user.username, phone=user.phone, birth_date=user.birth_date)
 
 
 @router.get("/", response_model=User)
