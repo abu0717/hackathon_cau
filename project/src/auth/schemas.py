@@ -16,6 +16,7 @@ class Token(BaseModel):
 class User(BaseModel):
     username: str
     phone: str = Field(max_length=16, min_length=13)
+    birth_date: datetime.date
 
 
 class UserInDB(User):
