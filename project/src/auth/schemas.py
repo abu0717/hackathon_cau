@@ -3,9 +3,11 @@ import datetime
 from pydantic import BaseModel, Field
 from enum import Enum as GEnum
 
+
 class Gender(GEnum):
     MALE = "M"
     Female = "F"
+
 
 class Token(BaseModel):
     access_token: str
@@ -29,3 +31,8 @@ class UserInfoSchema(BaseModel):
     chest_size: float
     waist_size: float
     hips_size: float
+
+
+class UserResponse(BaseModel):
+    latest_info: dict
+    progress_message: str
