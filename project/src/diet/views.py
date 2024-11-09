@@ -1,8 +1,235 @@
-from fastapi import APIRouter
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, Path, HTTPException, status, Response
+from sqlalchemy.exc import IntegrityError
+from .schemas import ProductSchema, ProductInSchema, IngredientSchema
+from .models import ProductModel, IngredientModel, IngredientProductModel, MealTimes, ProductTypes
+from sqlalchemy.orm import selectinload
+from sqlalchemy import select, delete
+from src.database.database import get_session, AsyncSession
+from src.auth.manager import UserManager
+from src.auth.models import SessionModel
+from .menu import generate_menu
 
 router = APIRouter(prefix='/diet', tags=['diet'])
 
+def err_response(err):
+    field = str(err.orig).split('.')[-1]
+    if not field:
+        field = str(err.orig).split('\n')[0].split()[-1].strip('"')
+    raise HTTPException(status.HTTP_409_CONFLICT, {
+            "detail": [
+                {
+                    "type": "conflict",
+                    "loc": [
+                        "body",
+                        field
+                    ],
+                    "msg": f"{field} already exists",
+                }
+            ]
+        }
+    )
 
-@router.get('/')
-async def diet():
-    return 'diet'
+
+@router.get('/products', response_model=list[ProductSchema])
+async def get_products(session: AsyncSession = Depends(get_session), _: bool = Depends(UserManager.verify_user)):
+    products = ((await session.execute(
+        select(ProductModel)
+        .options(selectinload(ProductModel.ingredients).selectinload(IngredientProductModel.ingredient))))
+         .scalars().all()
+         )
+    return [ProductSchema(name=p.name, description=p.description, ingredients=map(lambda x: IngredientSchema(
+            name=x.ingredient.name,
+            calories_per_unit=x.ingredient.calories_per_unit,
+            allergic_index=x.ingredient.allergic_index,
+            allergic_percentage=x.ingredient.allergic_percentage),
+            p.ingredients
+        ), calories=p.calories, type=p.type) for p in products]
+
+
+@router.post('/products', response_model=ProductInSchema)
+async def add_product(
+        product: ProductInSchema,
+        session: AsyncSession = Depends(get_session),
+        _: bool = Depends(UserManager.verify_user)
+):
+    product_obj = ProductModel(**product.model_dump())
+    session.add(product_obj)
+    await session.commit()
+    return product
+
+
+@router.get('/products/{id}', response_model=ProductSchema)
+async def get_product(
+        product_id: int = Path(alias='id'),
+        session: AsyncSession = Depends(get_session),
+        _: bool = Depends(UserManager.verify_user)
+):
+    p = ((await session.execute(
+        select(ProductModel)
+        .where(ProductModel.id == product_id)
+        .options(selectinload(ProductModel.ingredients).selectinload(IngredientProductModel.ingredient))))
+               .scalars().one_or_none()
+               )
+    if not p:
+        raise HTTPException(status_code=404, detail='Product not found')
+    return ProductSchema(
+        name=p.name,
+        description=p.description,
+        calories=p.calories,
+        type=p.type,
+        ingredients=map(lambda x: IngredientSchema(
+            name=x.ingredient.name,
+            calories_per_unit=x.ingredient.calories_per_unit,
+            allergic_index=x.ingredient.allergic_index,
+            allergic_percentage=x.ingredient.allergic_percentage),
+            p.ingredients
+        )
+    )
+
+
+@router.post('/products/{id}', response_model=ProductSchema)
+async def add_ingredient2product(
+        *,
+        product_id: int = Path(alias='id'),
+        ingredients: list[IngredientSchema],
+        session: AsyncSession = Depends(get_session),
+        _: bool = Depends(UserManager.verify_user)
+):
+    try:
+        p = await session.get(ProductModel, product_id)
+        if not p:
+            raise HTTPException(status_code=404, detail='Product not found')
+        result = list(map(lambda x: IngredientModel(**x.model_dump()), ingredients))
+        session.add_all(result)
+        await session.commit()
+        session.add_all(map(lambda x: IngredientProductModel(product_id=product_id, ingredient_id=x.id), result))
+        await session.commit()
+        product = await session.get(ProductModel, product_id)
+        return ProductSchema(
+            name=product.name,
+            description=product.description,
+            type=product.type,
+            calories=product.calories,
+            ingredients=ingredients)
+    except IntegrityError as err:
+        err_response(err)
+
+
+@router.delete('/products/{id}')
+async def delete_product(
+        *,
+        response: Response,
+        product_id: int = Path(alias='id'),
+        session: AsyncSession = Depends(get_session),
+        _: bool = Depends(UserManager.verify_user)
+):
+    try:
+        await session.execute(delete(ProductModel).where(ProductModel.id == product_id))
+        await session.commit()
+    except Exception as err:
+        print(type(err), err)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST)
+    response.status_code = status.HTTP_204_NO_CONTENT
+
+
+@router.post('/ingredient')
+async def add_ingredient(
+        *,
+        data: IngredientSchema,
+        session: AsyncSession = Depends(get_session),
+        _: bool = Depends(UserManager.verify_user)
+):
+    try:
+        ingredient = IngredientModel(**data.model_dump())
+        session.add(ingredient)
+        await session.commit()
+    except IntegrityError as err:
+        err_response(err)
+
+
+@router.delete('/ingredient/{id}')
+async def delete_ingredient(
+        *,
+        response: Response,
+        ingredient_id: int = Path(alias='id'),
+        session: AsyncSession = Depends(get_session),
+        _: bool = Depends(UserManager.verify_user)
+):
+    try:
+        await session.execute(delete(IngredientModel).where(IngredientModel.id == ingredient_id))
+        await session.commit()
+    except Exception as err:
+        print(type(err), err)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST)
+    response.status_code = status.HTTP_204_NO_CONTENT
+
+
+@router.put('/products/{id}', response_model=list[ProductSchema])
+async def update_product(
+        *,
+        product_id: int = Path(alias='id'),
+        ingredients: list[str],
+        session: AsyncSession = Depends(get_session),
+        _: bool = Depends(UserManager.verify_user)
+):
+    try:
+        p = await session.get(ProductModel, product_id)
+        if not p:
+            raise HTTPException(status_code=404, detail='Product not found')
+        result = (await session.execute(select(IngredientModel.id).where(IngredientModel.name.in_(ingredients)))).scalars().all()
+        session.add_all(map(lambda x: IngredientProductModel(product_id=product_id, ingredient_id=x), result))
+        await session.commit()
+        product = ((await session.execute(
+            select(ProductModel)
+            .where(ProductModel.id == product_id)
+            .options(selectinload(ProductModel.ingredients).selectinload(IngredientProductModel.ingredient))))
+             .scalars().one_or_none()
+             )
+        return ProductSchema(
+            name=product.name,
+            description=product.description,
+            type=product.type,
+            calories=product.calories,
+            ingredients=map(lambda x: IngredientSchema(
+                name=x.ingredient.name,
+                calories_per_unit=x.ingredient.calories_per_unit,
+                allergic_index=x.ingredient.allergic_index,
+                allergic_percentage=x.ingredient.allergic_percentage),
+                product.ingredients
+            )
+        )
+    except IntegrityError as err:
+        err_response(err)
+
+
+@router.get('/ingredients', response_model=list[IngredientSchema])
+async def get_ingredients(session: AsyncSession = Depends(get_session), _: bool = Depends(UserManager.verify_user)):
+    ingredients = (await session.execute(select(IngredientModel))).scalars().all()
+    return [
+        IngredientSchema(
+            name=i.name,
+            calories_per_unit=i.calories_per_unit,
+            allergic_index=i.allergic_index,
+            allergic_percentage=i.allergic_percentage
+        )
+        for i in ingredients
+    ]
+
+
+@router.get('/menu')
+async def get_menu(
+        session: AsyncSession = Depends(get_session),
+        user_session: SessionModel = Depends(UserManager.get_current_user)
+):
+    menu, products = await generate_menu(
+        user=user_session.user,
+        meal_time=MealTimes.BREAKFAST,
+        date=datetime.now(timezone.utc).date(),
+        calories=(10, 15),
+        types_amount={
+            ProductTypes.FOOD: 1,
+        },
+        session=session
+    )
