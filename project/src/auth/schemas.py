@@ -1,5 +1,5 @@
 import datetime
-
+from typing import Optional
 from pydantic import BaseModel, Field
 from enum import Enum as GEnum
 
@@ -17,7 +17,7 @@ class Token(BaseModel):
 
 class User(BaseModel):
     username: str
-    phone: str = Field(max_length=16, min_length=13)
+    phone: Optional[str] = Field(max_length=16, min_length=13)
     birth_date: datetime.date
 
 
@@ -28,9 +28,9 @@ class UserInDB(User):
 class UserInfoSchema(BaseModel):
     weight: float
     height: float
-    chest_size: float
-    waist_size: float
-    hips_size: float
+    chest_size: Optional[float]
+    waist_size: Optional[float]
+    hips_size: Optional[float]
 
 
 class UserResponse(BaseModel):

@@ -11,7 +11,7 @@ class AccountModel(BaseModel, UserManager):
 
     username: Mapped[str_64] = mapped_column(unique=True)
     password: Mapped[str_256]
-    phone: Mapped[str] = mapped_column(String(length=13), unique=True)
+    phone: Mapped[str] = mapped_column(String(length=13), unique=True, nullable=True)
     sessions: Mapped[list["SessionModel"]] = relationship(back_populates='user')
     birth_date: Mapped[date]
 
