@@ -17,4 +17,4 @@ class UserInfo(BaseModel):
     user_id: Mapped[int] = mapped_column(ForeignKey('accounts.id', ondelete="CASCADE"))
 
     def __str__(self):
-        return self.full_name
+        return f"{self.weight}"
