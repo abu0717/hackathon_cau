@@ -73,3 +73,5 @@ async def get_me(
     if user_session.active:
         return User(username=user_session.user.username, phone=user_session.user.phone)
     raise HTTPException(status_code=400, detail="Inactive user")
+
+
