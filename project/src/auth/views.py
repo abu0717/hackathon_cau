@@ -73,6 +73,16 @@ async def get_me(
         user_session: SessionModel = Depends(AccountModel.get_current_user),
 ):
     if user_session.active:
+        return User(username=user_session.user.username, phone=user_session.user.phone)
+    raise HTTPException(status_code=400, detail="Inactive user")
+
+
+@router.get('/info', response_model=User)
+async def get_user_info(
+        user_session: SessionModel = Depends(AccountModel.get_current_user),
+        session: AsyncSession = Depends(get_session)
+):
+    if user_session.active:
         account = user_session.user
 
         stmt = select(AccountModel, UserInfo).join(UserInfo, UserInfo.user_id == AccountModel.id).filter(
@@ -84,13 +94,15 @@ async def get_me(
         if not user_info:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User info not found")
 
-        return UserInfoSchema(**{
+        return {
+            "username": account_info.username,
+            "phone": account_info.phone,
             "weight": user_info.weight,
             "height": user_info.height,
             "chest_size": user_info.chest_size,
             "waist_size": user_info.waist_size,
             "hips_size": user_info.hips_size,
-        })
+        }
 
     raise HTTPException(status_code=400, detail="Inactive user")
 
@@ -257,4 +269,3 @@ async def get_user_progress(
         raise HTTPException(status_code=404, detail="Not enough data")
 
     raise HTTPException(status_code=400, detail="Inactive user")
-
