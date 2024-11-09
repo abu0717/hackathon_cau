@@ -1,4 +1,3 @@
-from datetime import timedelta
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Response
 from fastapi.security import OAuth2PasswordRequestForm
@@ -8,13 +7,13 @@ from sqlalchemy.exc import IntegrityError
 from src.database.database import get_session
 from .schemas import Token, User, UserInDB
 from .models import AccountModel, SessionModel
-from .manager import ACCESS_TOKEN_EXPIRE_MINUTES
+from .manager import credentials_exception, oauth2_scheme, UserManager
 
 router = APIRouter(prefix='/account', tags=['account'])
 
 
 @router.post("/token", response_model=Token)
-async def login_for_access_token(
+async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     session: AsyncSession = Depends(get_session)
 ) -> Token:
@@ -22,24 +21,24 @@ async def login_for_access_token(
         select(AccountModel).filter(AccountModel.username == form_data.username)
     )).scalars().one_or_none()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise credentials_exception
     if user.verify_password(form_data.password, user.password):
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = await user.create_access_token(
+        access_token, user_session_id = await user.create_access_token(
             session,
             data={"username": user.username},
-            expires_delta=access_token_expires
         )
-        return Token(access_token=access_token, token_type="bearer")
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Incorrect password",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+        refresh_token = user.create_refresh_token(data={"username": user.username}, user_session_id=user_session_id)
+        return Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
+    raise credentials_exception
+
+
+@router.post("/refresh", response_model=Token)
+async def refresh(
+    token: Annotated[str, Depends(oauth2_scheme)], session: Annotated[AsyncSession, Depends(get_session)]
+):
+  access_token ,= await UserManager.refresh_access_token(token, session)
+  return Token(access_token=access_token, token_type="bearer", refresh_token=token)
+
 
 
 @router.post('/')
