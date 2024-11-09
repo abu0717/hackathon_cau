@@ -1,5 +1,11 @@
-from pydantic import BaseModel, Field
+import datetime
 
+from pydantic import BaseModel, Field
+from enum import Enum as GEnum
+
+class Gender(GEnum):
+    MALE = "M"
+    Female = "F"
 
 class Token(BaseModel):
     access_token: str
@@ -14,3 +20,11 @@ class User(BaseModel):
 
 class UserInDB(User):
     password: str
+
+
+class UserInfoSchema(BaseModel):
+    weight: float
+    height: float
+    chest_size: float
+    waist_size: float
+    hips_size: float
