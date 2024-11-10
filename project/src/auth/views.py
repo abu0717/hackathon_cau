@@ -1,5 +1,5 @@
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status, Body, Response
+from fastapi import APIRouter, Depends, Body, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
@@ -7,9 +7,12 @@ from src.database.database import get_session
 from .schemas import Token, User, UserInDB, UserInfoSchema, UserResponse, UserGoalSchema
 from .models import AccountModel, SessionModel, UserInfo, UserGoal
 from .manager import credentials_exception, oauth2_scheme, UserManager
-from datetime import datetime, timedelta, timezone
-from sqlalchemy import select, desc, join
+from datetime import datetime, timedelta, date
+from sqlalchemy import select, desc
 from fastapi import HTTPException, status
+from src.diet.menu import generate_menu
+from src.diet.models import MealTimes
+from src.diet.models import ProductTypes
 
 router = APIRouter(prefix='/account', tags=['account'])
 
@@ -45,7 +48,7 @@ async def refresh(
 @router.post('/')
 async def create_account(response: Response, data: UserInDB = Body(), session: AsyncSession = Depends(get_session)):
     user = AccountModel(username=data.username, password=AccountModel.get_password_hash(data.password),
-                        phone=data.phone, birth_date=data.birth_date)
+                        phone=data.phone, birth_date=data.birth_date, gender=data.gander)
     try:
         session.add(user)
         await session.commit()
@@ -65,7 +68,7 @@ async def create_account(response: Response, data: UserInDB = Body(), session: A
                 }
             ]
         }
-    return User(username=user.username, phone=user.phone, birth_date=user.birth_date)
+    return User(username=user.username, phone=user.phone, birth_date=user.birth_date, gender=user.gender)
 
 
 @router.get("/", response_model=User)
@@ -73,20 +76,18 @@ async def get_me(
         user_session: SessionModel = Depends(AccountModel.get_current_user),
 ):
     if user_session.active:
-        return User(username=user_session.user.username, phone=user_session.user.phone, birth_date=user_session.user.birth_date)
+        return User(username=user_session.user.username, phone=user_session.user.phone, birth_date=user_session.user.birth_date, gender=user_session.user.gender)
     raise HTTPException(status_code=400, detail="Inactive user")
 
 
-@router.get('/info', response_model=User)
+@router.get('/info')
 async def get_user_info(
         user_session: SessionModel = Depends(AccountModel.get_current_user),
         session: AsyncSession = Depends(get_session)
 ):
     if user_session.active:
-        account = user_session.user
-
         stmt = select(AccountModel, UserInfo).join(UserInfo, UserInfo.user_id == AccountModel.id).filter(
-            user_session.user_id == AccountModel.id)
+            AccountModel.id == user_session.user_id)
         result = await session.execute(stmt)
 
         account_info, user_info = result.first()
@@ -188,6 +189,27 @@ async def register(users: UserInfoSchema, response: Response, session: AsyncSess
     await session.commit()
 
     await session.refresh(new_user_info)
+    age = datetime.utcnow().year - user.birth_date.year
+    for_men = lambda h, w: ((10 * w) + (6.25 * h) - (5 * age) + 5, (10 * w) + (6.25 * h) - (5 * age) + 20)
+    for_women = lambda h, w: ((10 * w) + (6.25 * h) - (5 * age) + 161, (10 * w) + (6.25 * h) - (5 * age) + 200)
+    calories = for_men(users.weight, users.height) if user.gender else for_women
+
+    types_amount = {
+        ProductTypes.FOOD: 1,
+        ProductTypes.FRUIT: 2,
+        ProductTypes.DAIRY: 1
+    }
+    try:
+        await generate_menu(
+            user,
+            meal_time=MealTimes.BREAKFAST,
+            date=date.today(),
+            calories=calories,
+            types_amount=types_amount,
+            session=session,
+        )
+    except ValueError:
+        pass
 
     return {"message": "User Info updated successfully", "user_info": new_user_info}
 

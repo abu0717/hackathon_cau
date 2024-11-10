@@ -14,6 +14,7 @@ class User(BaseModel):
     username: str
     phone: Optional[str] = Field(default=None, max_length=16, min_length=13)
     birth_date: datetime.date
+    gender: bool
 
 
 class UserInDB(User):

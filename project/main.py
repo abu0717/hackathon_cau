@@ -5,8 +5,16 @@ from routers import router
 from settings import settings
 from fastapi.middleware.cors import CORSMiddleware
 import os
+from contextlib import asynccontextmanager
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    if not os.path.exists('media/images'):
+        os.makedirs('media/images')
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 origins = [
     "http://localhost",
@@ -34,6 +42,8 @@ async def media(file_path: str = Path()):
 @app.get("/")
 async def home():
     return "hello"
+
+
 
 
 def main():
