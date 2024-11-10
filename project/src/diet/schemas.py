@@ -45,5 +45,4 @@ class MenuItemSchema(BaseModel):
 class MenuSchema(BaseModel):
     meal_time: MealTimes
     date: datetime.date
-    user: User
     items: list[ProductInSchema]

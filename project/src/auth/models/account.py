@@ -14,6 +14,7 @@ class AccountModel(BaseModel, UserManager):
     phone: Mapped[str] = mapped_column(String(length=13), unique=True, nullable=True)
     sessions: Mapped[list["SessionModel"]] = relationship(back_populates='user')
     birth_date: Mapped[date]
+    gender: Mapped[bool]
 
     def __str__(self):
         return f"<AccountModel: (username={self.username}, phone={self.phone})>"

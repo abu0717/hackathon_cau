@@ -1,14 +1,12 @@
-from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Path, HTTPException, status, Response, File, UploadFile, Form
 from sqlalchemy.exc import IntegrityError
-from .schemas import ProductSchema, IngredientSchema, ProductOutSchema
-from .models import ProductModel, IngredientModel, IngredientProductModel, MealTimes, ProductTypes
+from .schemas import ProductSchema, IngredientSchema, ProductOutSchema, MenuSchema, MenuItemSchema
+from .models import ProductModel, IngredientModel, IngredientProductModel, ProductTypes, MenuModel, MenuItemModel
 from sqlalchemy.orm import selectinload
 from sqlalchemy import select, delete
 from src.database.database import get_session, AsyncSession
 from src.auth.manager import UserManager
 from src.auth.models import SessionModel
-from .menu import generate_menu
 import aiofiles
 from settings import settings
 
@@ -256,18 +254,17 @@ async def get_ingredients(session: AsyncSession = Depends(get_session), _: bool 
     ]
 
 
-@router.get('/menu')
+@router.get('/menu', response_model=list[MenuSchema])
 async def get_menu(
         session: AsyncSession = Depends(get_session),
         user_session: SessionModel = Depends(UserManager.get_current_user)
 ):
-    menu, products = await generate_menu(
-        user=user_session.user,
-        meal_time=MealTimes.BREAKFAST,
-        date=datetime.now(timezone.utc).date(),
-        calories=(10, 15),
-        types_amount={
-            ProductTypes.FOOD: 1,
-        },
-        session=session
-    )
+    menus = (await session.execute(
+        select(MenuModel)
+        .where(MenuModel.user_id == user_session.user.id)
+        .options(selectinload(MenuModel.items).selectinload(MenuItemModel.product)))).scalars().all()
+    return [MenuSchema(
+        meal_time=menu.meal_time,
+        date=menu.date,
+        items=[MenuItemSchema(product=m.product) for m in menu.items]
+    ) for menu in menus]
