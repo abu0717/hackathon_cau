@@ -4,8 +4,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from src.database.database import get_session
-from .schemas import Token, User, UserInDB, UserInfoSchema, UserResponse
-from .models import AccountModel, SessionModel, UserInfo
+from .schemas import Token, User, UserInDB, UserInfoSchema, UserResponse, UserGoalSchema
+from .models import AccountModel, SessionModel, UserInfo, UserGoal
 from .manager import credentials_exception, oauth2_scheme, UserManager
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, desc, join
@@ -269,3 +269,53 @@ async def get_user_progress(
         raise HTTPException(status_code=404, detail="Not enough data")
 
     raise HTTPException(status_code=400, detail="Inactive user")
+
+
+@router.post('/goal')
+async def set_goal(
+        goal_data: UserGoalSchema,
+        user_session: SessionModel = Depends(AccountModel.get_current_user),
+        session: AsyncSession = Depends(get_session)
+):
+    if not user_session.active:
+        raise HTTPException(status_code=404, detail="Inactive user")
+
+    account = user_session.user
+
+    stmt = select(UserGoal).where(UserGoal.user_id == account.id)
+    result = await session.execute(stmt)
+    user_goal = result.scalars().first()
+
+    if user_goal:
+        user_goal.goal = goal_data.goal
+        user_goal.created_at = datetime.utcnow()
+    else:
+        user_goal = UserGoal(
+            goal=goal_data.goal,
+            created_at=datetime.utcnow(),
+            user_id=account.id
+        )
+        session.add(user_goal)
+    await session.commit()
+    await session.refresh(user_goal)
+    return user_goal
+
+
+@router.get('/goal', response_model=UserGoalSchema)
+async def get_goal(
+        user_session: SessionModel = Depends(AccountModel.get_current_user),
+        session: AsyncSession = Depends(get_session)
+):
+    if not user_session.active:
+        raise HTTPException(status_code=404, detail="Inactive User")
+
+    account = user_session.user
+    account = user_session.user
+    stmt = select(UserGoal).where(UserGoal.user_id == account.id)
+    result = await session.execute(stmt)
+    user_goal = result.scalars().first()
+
+    if not user_goal:
+        raise HTTPException(status_code=404, detail="Goal not set")
+
+    return user_goal
