@@ -17,7 +17,7 @@ class Token(BaseModel):
 
 class User(BaseModel):
     username: str
-    phone: Optional[str] = Field(max_length=16, min_length=13)
+    phone: Optional[str] = Field(default=None, max_length=16, min_length=13)
     birth_date: datetime.date
 
 
@@ -28,9 +28,9 @@ class UserInDB(User):
 class UserInfoSchema(BaseModel):
     weight: float
     height: float
-    chest_size: Optional[float]
-    waist_size: Optional[float]
-    hips_size: Optional[float]
+    chest_size: Optional[float] = None
+    waist_size: Optional[float] = None
+    hips_size: Optional[float] = None
 
 
 class UserResponse(BaseModel):

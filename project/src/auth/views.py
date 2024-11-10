@@ -152,7 +152,7 @@ async def get_user_info(session: AsyncSession = Depends(get_session)):
 async def register(users: UserInfoSchema, response: Response, session: AsyncSession = Depends(get_session),
                    data: UserInDB = Body()):
     user = AccountModel(username=data.username, password=AccountModel.get_password_hash(data.password),
-                        phone=data.phone)
+                        phone=data.phone, birth_date=data.birth_date)
 
     try:
         session.add(user)
