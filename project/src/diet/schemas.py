@@ -27,6 +27,10 @@ class ProductSchema(ProductInSchema):
     ingredients: list[IngredientSchema]
 
 
+class ProductOutSchema(ProductSchema):
+    image: str
+
+
 class TrainingSchema(BaseModel):
     name: str
     video: str

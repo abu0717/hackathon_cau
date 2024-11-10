@@ -1,14 +1,14 @@
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Path, HTTPException, status
+from fastapi.responses import FileResponse
 from routers import router
 from settings import settings
 from fastapi.middleware.cors import CORSMiddleware
+import os
 
 app = FastAPI()
 
 origins = [
-    "http://localhost.tiangolo.com",
-    "https://localhost.tiangolo.com",
     "http://localhost",
     "http://localhost:8080",
 ]
@@ -21,6 +21,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(router)
+
+
+@app.get('/media/images/{file_path}', response_class=FileResponse)
+async def media(file_path: str = Path()):
+    file_path = f"media/images/{file_path}"
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    return FileResponse(file_path)
 
 
 @app.get("/")

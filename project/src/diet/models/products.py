@@ -21,7 +21,9 @@ class ProductModel(BaseModel):
     name: Mapped[str_64] = mapped_column(unique=True)
     description: Mapped[str_256] = mapped_column(nullable=True)
     ingredients: Mapped[list["IngredientProductModel"] | None] = relationship(back_populates="product")
+    image: Mapped[str_256] = mapped_column(unique=True)
     type: Mapped[ProductTypes]
+    price: Mapped[int] = mapped_column(default=0)
     calories: Mapped[int]
 
     def __str__(self):
