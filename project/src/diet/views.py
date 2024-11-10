@@ -1,8 +1,7 @@
 from datetime import datetime, timezone
-
-from fastapi import APIRouter, Depends, Path, HTTPException, status, Response
+from fastapi import APIRouter, Depends, Path, HTTPException, status, Response, File, UploadFile, Form
 from sqlalchemy.exc import IntegrityError
-from .schemas import ProductSchema, ProductInSchema, IngredientSchema
+from .schemas import ProductSchema, IngredientSchema, ProductOutSchema
 from .models import ProductModel, IngredientModel, IngredientProductModel, MealTimes, ProductTypes
 from sqlalchemy.orm import selectinload
 from sqlalchemy import select, delete
@@ -10,6 +9,8 @@ from src.database.database import get_session, AsyncSession
 from src.auth.manager import UserManager
 from src.auth.models import SessionModel
 from .menu import generate_menu
+import aiofiles
+from settings import settings
 
 router = APIRouter(prefix='/diet', tags=['diet'])
 
@@ -32,32 +33,63 @@ def err_response(err):
     )
 
 
-@router.get('/products', response_model=list[ProductSchema])
+@router.get('/products', response_model=list[ProductOutSchema])
 async def get_products(session: AsyncSession = Depends(get_session), _: bool = Depends(UserManager.verify_user)):
     products = ((await session.execute(
         select(ProductModel)
         .options(selectinload(ProductModel.ingredients).selectinload(IngredientProductModel.ingredient))))
          .scalars().all()
          )
-    return [ProductSchema(name=p.name, description=p.description, ingredients=map(lambda x: IngredientSchema(
-            name=x.ingredient.name,
-            calories_per_unit=x.ingredient.calories_per_unit,
-            allergic_index=x.ingredient.allergic_index,
-            allergic_percentage=x.ingredient.allergic_percentage),
-            p.ingredients
-        ), calories=p.calories, type=p.type) for p in products]
+
+    return [ProductOutSchema(
+        name=p.name, description=p.description,
+        calories=p.calories, type=p.type.value, image=p.image,
+        ingredients=map(
+            lambda x: IngredientSchema(
+                name=x.ingredient.name,
+                calories_per_unit=x.ingredient.calories_per_unit,
+                allergic_index=x.ingredient.allergic_index,
+                allergic_percentage=x.ingredient.allergic_percentage
+            ), p.ingredients
+        )) for p in products]
 
 
-@router.post('/products', response_model=ProductInSchema)
+@router.post('/products', response_model=ProductOutSchema)
 async def add_product(
-        product: ProductInSchema,
+        name: str = Form(...),
+        description: str | None = Form(nullable=True),
+        type: ProductTypes = Form(...),
+        calories: int = Form(...),
+        image: UploadFile = File(...),
         session: AsyncSession = Depends(get_session),
         _: bool = Depends(UserManager.verify_user)
 ):
-    product_obj = ProductModel(**product.model_dump())
+    image_path = f"media/images/{image.filename.replace(' ', '_')}"
+    file_location = settings.base_dir / image_path
+    product_obj = ProductModel(
+        name=name,
+        description=description,
+        type=type,
+        calories=calories,
+        image=f"{settings.protocol}://{settings.host}/{image_path}",
+    )
     session.add(product_obj)
-    await session.commit()
-    return product
+    try:
+        await session.commit()
+    except IntegrityError as err:
+        err_response(err)
+    async with aiofiles.open(file_location, 'wb') as file:
+        while content := await image.read(1024):
+            await file.write(content)
+
+    return ProductOutSchema(
+        name=name,
+        description=description,
+        type=type,
+        calories=calories,
+        image=product_obj.image,
+        ingredients=[]
+    )
 
 
 @router.get('/products/{id}', response_model=ProductSchema)

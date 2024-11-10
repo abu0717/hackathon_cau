@@ -1,3 +1,4 @@
+import pathlib
 from os import getenv
 from dotenv import load_dotenv
 from dataclasses import dataclass
@@ -43,15 +44,19 @@ class AuthSettings:
 
 @dataclass(frozen=True)
 class Settings:
+    base_dir: pathlib.Path
     host: str
     port: int
+    protocol: str
     database: DatabaseSettings
     auth: AuthSettings
 
 
 settings = Settings(
-    host=getenv('HOST'),
+    base_dir=pathlib.Path(__file__).parent.absolute(),
+    host=getenv('DOMAIN'),
     port=int(getenv('PORT')),
+    protocol=getenv('PROTOCOL'),
     database=DatabaseSettings(
         user=getenv('DATABASE_USER'),
         password=getenv('DATABASE_PASS'),

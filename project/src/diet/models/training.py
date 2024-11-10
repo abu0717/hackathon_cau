@@ -1,7 +1,7 @@
 from sqlalchemy import UniqueConstraint, ForeignKey
 from src.auth.models import AccountModel
 from src.database.models import BaseModel
-from src.database.types import str_32
+from src.database.types import str_32, str_256
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from enum import Enum
 
@@ -17,7 +17,7 @@ class TrainingModel(BaseModel):
     __tablename__ = 'trainings'
 
     name: Mapped[str_32]
-    video: Mapped[str_32] = mapped_column(unique=True)
+    video: Mapped[str_256] = mapped_column(unique=True)
     level: Mapped[TrainingLevels]
     conducted_trainings: Mapped[list["ConductedTrainingModel"]] = relationship(back_populates="training")
 
