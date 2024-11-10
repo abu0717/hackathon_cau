@@ -38,6 +38,4 @@ END
 
 tail -f /var/log/cron.log &
 
-alembic upgrade head
-
 exec "$@"

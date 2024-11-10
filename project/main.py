@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 async def lifespan(app: FastAPI):
     if not os.path.exists('media/images'):
         os.makedirs('media/images')
+    os.system('alembic upgrade head')
     yield
 
 app = FastAPI(lifespan=lifespan)
