@@ -1,12 +1,7 @@
 import datetime
 from typing import Optional
 from pydantic import BaseModel, Field
-from enum import Enum as GEnum
-
-
-class Gender(GEnum):
-    MALE = "M"
-    Female = "F"
+from enum import Enum
 
 
 class Token(BaseModel):
@@ -36,3 +31,13 @@ class UserInfoSchema(BaseModel):
 class UserResponse(BaseModel):
     latest_info: dict
     progress_message: str
+
+
+class GoalType(str, Enum):
+    loss = "loss"
+    gain = "gain"
+    maintain = "maintain"
+
+
+class UserGoalSchema(BaseModel):
+    goal: GoalType
