@@ -21,6 +21,7 @@ class ProductInSchema(BaseModel):
     description: str | None = None
     type: ProductTypes
     calories: int
+    price: int
 
 
 class ProductSchema(ProductInSchema):

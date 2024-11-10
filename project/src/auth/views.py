@@ -73,7 +73,7 @@ async def get_me(
         user_session: SessionModel = Depends(AccountModel.get_current_user),
 ):
     if user_session.active:
-        return User(username=user_session.user.username, phone=user_session.user.phone)
+        return User(username=user_session.user.username, phone=user_session.user.phone, birth_date=user_session.user.birth_date)
     raise HTTPException(status_code=400, detail="Inactive user")
 
 

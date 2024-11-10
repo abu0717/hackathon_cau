@@ -42,7 +42,7 @@ async def get_products(session: AsyncSession = Depends(get_session), _: bool = D
          )
 
     return [ProductOutSchema(
-        name=p.name, description=p.description,
+        name=p.name, description=p.description, price=p.price,
         calories=p.calories, type=p.type.value, image=p.image,
         ingredients=map(
             lambda x: IngredientSchema(
@@ -60,6 +60,7 @@ async def add_product(
         description: str | None = Form(nullable=True),
         type: ProductTypes = Form(...),
         calories: int = Form(...),
+        price: int = Form(),
         image: UploadFile = File(...),
         session: AsyncSession = Depends(get_session),
         _: bool = Depends(UserManager.verify_user)
@@ -70,6 +71,7 @@ async def add_product(
         name=name,
         description=description,
         type=type,
+        price=price,
         calories=calories,
         image=f"{settings.protocol}://{settings.host}/{image_path}",
     )
@@ -86,6 +88,7 @@ async def add_product(
         name=name,
         description=description,
         type=type,
+        price=price,
         calories=calories,
         image=product_obj.image,
         ingredients=[]
@@ -110,6 +113,7 @@ async def get_product(
         name=p.name,
         description=p.description,
         calories=p.calories,
+        price=p.price,
         type=p.type,
         ingredients=map(lambda x: IngredientSchema(
             name=x.ingredient.name,
@@ -143,6 +147,7 @@ async def add_ingredient2product(
             name=product.name,
             description=product.description,
             type=product.type,
+            price=product.price,
             calories=product.calories,
             ingredients=ingredients)
     except IntegrityError as err:
@@ -223,6 +228,7 @@ async def update_product(
             name=product.name,
             description=product.description,
             type=product.type,
+            price=product.price,
             calories=product.calories,
             ingredients=map(lambda x: IngredientSchema(
                 name=x.ingredient.name,
